@@ -1,0 +1,203 @@
+---
+title: "MSIA 401 - Homework 4"
+author: "Jeff Parker"
+date: "October 21, 2016"
+output: html_document
+---
+
+# 4.2
+
+???? Ask for help on the proof ????
+
+# 4.6
+
+```{r}
+b <- read.csv("C:/Users/Jeff/Downloads/Business Failures.csv")
+plot(b$Population, b$Failures)
+```
+
+## a. 
+There appears to be a linear relationship between population and failures. That is to be expected. It looks like the variance in the data points is increasing, which would lead me to consider there is a homoscadesticity violation. Due to the size of the population in California, it clearly has too much leverage. Taking a log transformation would solve our homoscadesticity and outliers problems.
+
+## b.
+```{r}
+lmfit <- lm(b$Failures ~ b$Population)
+plot(lmfit,which=1:2)
+```
+
+The normality assumption does not seem to be violated. There is some slight indication of long-tailed data, but nothing to be concerned with. However, The Fitted vs. Residuals clearly shows that there is a homoscadesicity violation.
+
+## c. 
+
+```{r}
+b$log.Failures <- log(b$Failures)
+b$log.Population <- log(b$Population)
+lmfit <- lm(b$log.Failures ~ b$log.Population)
+plot(lmfit,which=1:2)
+```
+
+With the log transformation, the assumption of normality is retained. Since the variances do not follow a pattern on the Fitted v. Residual plot, we can assume homoscadasticity in the model.
+
+#4.7
+
+```{r}
+lmfit <- lm(b$Failures ~ b$Population)
+hat <- hatvalues(lmfit, fullHatMatrix = FALSE)
+p = 1
+n = 51
+hat[5] > 2*(p + 1) / n
+```
+
+First we check for leverage.
+$$
+h_{ii} > \frac{2(p + 1)}{n}\\
+0.4466969 > \frac{2(1 + 1)}{51}
+$$
+Since 0.4466969 > 0.07843137, the California observation has undue leverage on the model. Now we can also see if it is an outlier using the internally and externally studentized residuals.
+```{r}
+summary(lmfit)
+anova(lmfit)
+y_ca <- -785.70901 + 0.48876 * 31211
+e_ca <- 14168.97935 - 19695
+```
+
+$$
+\hat{y_i} = \hat{\beta_0} + \hat{\beta_1} x_i\\
+\hat{\text{Failures}_{CA}} = -785.70901 + 0.48876 * x_{CA}\\
+14168.97935 = -785.70901 + 0.48876 * 31211\\
+e_{(i)} = y_i - \hat{y_{i(i)}}
+$$
+
+We predicted the failures in California to be 14,168, the actual failures in California were 19,695 so our $e_{CA} = 14168.97935 - 19695 = -5526.02065$. Our internally studentized residuals equals:
+
+$$
+e^*_i = \frac{e_i}{s\sqrt{1-h_{ii}}}\\
+e^*_{CA} = \frac{-5526.02065}{1312919\sqrt{1-0.4466969}}
+$$
+
+```{r}
+student_error <- -5526.02065/ (1312919 * sqrt(1-0.4466969))
+```
+
+The internally studentized error equals -0.005658.
+
+???? Need help with studentized calculations ???
+
+# 4.9
+
+Counting the runs on the soft drink sales over time plot, the runs total 11. So $R = 11$.
+$$
+E(R) = \frac{2n_1n_2}{n_1 + n2} + 1 \text{and} \text{Var}(R) = \frac{2n_1n_2(2n_1n_2 - n_1 - n_2)}{(n_1 + n_2)^2(n_1 + n_2 - 1}\\
+z_{value} = \frac{R-E(R)}{\sqrt{\text{Var}(R)}}
+z_{crit} = \frac{\overline{x}-\mu_0}{\frac{\sigma}{\sqrt{n}}}$$
+$$
+
+```{r}
+n_1 = 5
+n_2 = 6
+n = n_1 + n_2
+R = 11
+E_R = (2 * n_1 * n_2) / (n_1 + n_2) + 1
+Var_R = (2 * n_1 * n_2 * (2 * n_1 * n_2 - n_1 - n_2)) / ((n_1 + n_2)^2 * (n_1 + n_2 - 1))
+z_value = (R - E_R) / sqrt(Var_R)
+z_crit = 3.6
+```
+
+Since our z_value is > z_crit we can reject our $H_0$. The time series data is independent.
+
+???? Need help with the Z test
+
+# 4.10
+
+## a.
+```{r}
+w <- read.csv("C:/Users/Jeff/Downloads/Woodbeam Strength.csv")
+plot(w$Specific.Gravity, w$Strength)
+plot(w$Moisture, w$Strength)
+#pairs(~Strength + Specific.Gravity + Moisture,data = w)
+plot(w)
+```
+
+Plotting the two predictors, it looks likes there is an outlier when Specific Gravity = 0.550.
+
+## b.
+```{r}
+lmfit <- lm(w$Strength ~ w$Specific.Gravity + w$Moisture)
+hat <- hatvalues(lmfit, fullHatMatrix = TRUE)
+p = 2
+n = 10
+hat[1] > 2*(p + 1) / n
+```
+
+It doesn't appear the that the observation is causing undue influence on the model.
+
+## c.
+
+```{r}
+plot(lmfit, which=4)
+```
+
+Looking at the plot of Cook's distance. The observation 5 is still not influencial. The cut-off for Cook's distance is $D_i > 4/(n - p - 1) = 0.5714286$. Observation 1, however, is influencial.
+
+## d. 
+
+```{r}
+lmfit <- lm(w$Strength ~ w$Specific.Gravity + w$Moisture)
+summary(lmfit)
+w2 <- w[-c(1), ]
+lmfit <- lm(w2$Strength ~ w2$Specific.Gravity + w2$Moisture)
+summary(lmfit)
+```
+
+The $R^2$ of our model increases without the observation. However, the probablility of Moisture becomes insignificant in the model.
+
+# 4.12
+
+## a. 
+
+```{r}
+m <- read.csv("C:/Users/Jeff/Downloads/MULTDEPEND DATA.csv")
+cor(m)
+```
+
+Using the correllation matrix, none of the correllations exceed the 0.5. Thus the correllations do not indicate multicollinarity.
+
+## b.
+```{r}
+
+summary(lm(m$x1 ~ m$x2 + m$x3 + m$x4))
+R1 = 0.9944
+summary(lm(m$x2 ~ m$x1 + m$x3 + m$x4))
+R2 = 0.9937
+summary(lm(m$x3 ~ m$x1 + m$x2 + m$x4))
+R3 = 0.9961
+summary(lm(m$x4 ~ m$x1 + m$x2 + m$x3))
+R4 = 0.9965
+1 / (1 - R1) # VIF1
+1 / (1 - R2) # VIF2
+1 / (1 - R3) # VIF3
+1 / (1 - R4) # VIF4
+```
+
+All of the VIF's are extremely high which highly indicates multicollinearity.
+
+# 4.13
+
+## a.
+
+```{r}
+a <- read.csv("C:/Users/Jeff/Downloads/acetylene.csv")
+lmfit <- lm(a$y ~ a$x1 + a$x2 + a$x3 + I(a$x1^2) + I(a$x2^2) + I(a$x3^2))
+summary(lmfit)
+pairs(~x1 + x2  + x3, data = a)
+cor(a)
+```
+
+x1 and x3 look highly correlated. I am not sure what is going on with x1 and x2 but it looks really funky.
+
+## b. 
+
+
+
+
+

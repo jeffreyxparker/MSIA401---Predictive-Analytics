@@ -1,0 +1,237 @@
+---
+title: "MSIA 410 - Homework 6"
+author: "Jeff Parker"
+date: "November 14, 2016"
+output: html_document
+---
+```{r include = FALSE}
+library(pROC)
+library(Rcpp)
+library(mlogit)
+library(ordinal)
+```
+
+
+# Exercise 1
+
+## Part a
+
+```{r}
+radiation <- read.csv("C:/Users/Jeff/Downloads/radiation.csv")
+glmfit <- glm(Success ~ Days, family = binomial, data = radiation)
+summary(glmfit)
+exp(glmfit$coefficients[2])
+```
+Each day day that passes with radiotherapy increases the odds of a successful therapy (the absence of a tumor). An increase in days has a positive coefficient, indicating the more days that pass, the higher the odds of a "1" in the outcome variable. In this case, a "1" as an outcome variable is the absence of a tumor and a success therapy. Each day increases the log odds by 0.08648 or the odds by a factor of 1.09.
+
+## Part B
+```{r}
+# create function to iterate through sequence and p*
+get_cost <- function (c1, c2)   {
+  prob <- seq (from = 0.1, to = 0.9, by = 0.1)
+  cost <- c()
+    # for sequence
+  for (i in prob) {
+      real <- radiation$Success # use data
+      fitted <- ifelse(glmfit$fitted.values > i , 1, 0) #get predicted values
+      diff <- real -  fitted # get diff of values
+      false_neg <- length( diff[diff == -1]) # calculate true neg and true pos length for counts
+      false_pos <- length( diff[diff == 1])
+      ci <- c1 * false_neg + c2*false_pos # calculate cost
+      cost <- c(cost, ci)
+  }
+ return(cost)
+ }
+
+p <-  seq (from = 0.1, to = 0.9, by = 0.1)
+cost_1_5 <- get_cost(1, 5)
+cost_1 <- get_cost(1, 1)
+cost_5 <- get_cost(5, 1)
+# print results
+df <- data.frame(cbind(p, cost_1_5, cost_1, cost_5))
+df
+par(mfrow = c(1,3))
+plot(x = p, y = cost_1_5)
+plot(x = p, y = cost_1)
+plot(x = p, y = cost_5)
+```
+
+With the 1/5 cost, the optimal p is very small - many failures will pass as successes. With the cost of 5 the optimal p is very high - many successes will be pass as failures. With an equal cost, the optimal p is in the middle. In this case, I think the $c_1 > c_2$ because if a failure is classified as a success, then the patient might discontinue treatment, beleiving they have been cured. Alternatively, if a success is classified as a failure, the patient continues treatment unneccessarily or simply retakes the test. Therefore, I would make the optimal p value very high.
+
+# Excercise 2
+
+## Part a.
+```{r warning=FALSE}
+bankruptcies <- read.csv("C:/Users/Jeff/Downloads/bankruptcies.csv")
+glmfit_full <- glm(y ~ x1 + x2 + x3, family = binomial, data = bankruptcies)
+summary(glmfit_full)
+```
+
+## Part b.
+```{r warning=FALSE}
+plot.roc(bankruptcies$y, glmfit_full$fitted.values)
+glmfit_partial <- glm(y ~ x1 + x2, family = binomial, data = bankruptcies)
+plot.roc(bankruptcies$y, glmfit_partial$fitted.values)
+```
+
+It is difficult to compare both of ROC curves because the data is highly clustered. Therefore, the AUC is nearly 1 for both the full and the partial model.
+The AUC for the full is 0.9991 and the AUC for the partial is 0.9972.
+
+## Part c.
+
+```{r warning=FALSE}
+deviances_full <- glmfit_full$deviance
+deviances_partial <- glmfit_partial$deviance
+deviance_diff <- deviances_partial - deviances_full
+deviance_df <- glmfit_partial$df.residual - glmfit_full$df.residual
+p_value <- 1 - pchisq(deviance_diff, df = deviance_df)
+p_value
+```
+We fail to reject at alpha = 0.05 based on the this p_value
+
+# Excercise 3
+
+## Part a.
+If $s_1$ is the number of success for group 1 and $n_1$ is the sample population for group 1, then the probability is $\hat{p_1} = s_1 / n_1$. These are the same equations for group 2. In our case, Presnisone is group 1 and Presnisone + VCR is group 2. The log-odds ration derived from the CCR is:
+$$
+\ln \psi(x) = \ln \frac{n_{1,1} / n_{1,2}}{n_{2,1} / n_{2,2}}
+$$
+```{r}
+n_11 = 14
+n_12 = 7
+n_21 = 38
+n_22 = 4
+log_odds = log((n_11 / n_12) / (n_21 / n_22))
+log_odds
+```
+
+Now we find the observed variance from the using the formula in Excercise 6.1
+$$
+\hat{Var}(\ln \hat{\psi}) \approx \frac{1}{n_1\hat{p_1}(1-\hat{p_1})} + \frac{1}{n_2\hat{p_2}(1-\hat{p_2})}
+$$
+
+```{r}
+n_1 = n_11 + n_12
+n_2 = n_21 + n_22
+s_1 = n_11
+s_2 = n_21
+p_1_observed = s_1 / n_1
+p_2_observed = s_2 / n_2
+var_log_psi_observed = ( 1 / (n_1*p_1_observed*(1-p_1_observed))) +  ( 1 / (n_2*p_2_observed*(1-p_2_observed)))
+
+pnorm(log_odds, sd = sqrt(var_log_psi_observed))
+```
+At $\alpha = 5%$, we would reject the $H_0$, therefore log odds is not statistically significant.
+
+## Part b.
+If our $H_0: \hat{p_1} = \hat{p_2}$ then, we can calculate the z-score using the following formula:
+$$
+z = \frac{(\hat{p_1} - \hat{p_2}) - 0}
+{\sqrt{ \frac{p_1(1-\hat{p_1})}{n_1} + \frac{p_2(1-\hat{p_2})}{n_2}}}
+$$
+```{r}
+z = ((p_2_observed - p_1_observed) - 0 ) / (sqrt((p_1_observed*(1 - p_1_observed) / n_1) +(p_2_observed*(1 - p_2_observed) / n_2)))
+pvalue=2*pnorm(-abs(z))
+pvalue
+```
+p-value is smaller than 0.05 so we reject the null hypothesis.
+
+# Exercise 6.4
+
+```{r}
+pregnancy <- read.csv("C:/Users/Jeff/Downloads/Pregnancy.csv")
+pregnancy$Age <- as.factor(pregnancy$Age)
+pregnancy$Age <- relevel(pregnancy$Age, "2")
+training <- pregnancy[seq(1, nrow(pregnancy), 2),]
+test <- pregnancy[seq(2, nrow(pregnancy), 2),]
+```
+
+## Part a. 
+
+We can break down the data into a training and a test set and fit a nominal logistic regression using the mlogit library.
+
+```{r}
+training1 = mlogit.data(data = training, choice = "Duration", shape = "wide", varying = NULL)
+fit1=mlogit(Duration ~ 0|Nutrition + Alcohol + Smoking + factor(Age), data = training1, reflevel = "3") 
+summary(fit1)
+
+Y.prob.1 = fitted(fit1, outcome= FALSE)
+n = nrow(test)
+Y.hat.1 = rep(0,n)
+for(i in 1:n){if(max(Y.prob.1[i,]) == Y.prob.1[i,1]){Y.hat.1[i]=3;}else if(max(Y.prob.1[i,]) == Y.prob.1[i,2]){Y.hat.1[i]=1;}else if(max(Y.prob.1[i,]) == Y.prob.1[i,3]){Y.hat.1[i]=2;}}
+
+
+ctable1 = table(test$Duration, Y.hat.1)
+correct.rate1 = sum(diag(ctable1)[1:3])/nrow(test);
+ctable1
+correct.rate1
+```
+
+This model has a correct classification rate of 68% between the test and the train dataset.
+
+## Part b.
+```{r}
+
+training$Duration.ordered = as.ordered(training$Duration)
+fit2=clm(Duration.ordered ~ Nutrition + Alcohol + Smoking + factor(Age), data = training)
+summary(fit2)
+predict(fit2,newdata=data.frame(Nutrition=500,Alcohol=0,Smoking=0,Age = 3)) #Testing the healthiest case I can think of. 
+
+Y.hat.2 = rep(0,n)
+Y.prob.2 = fitted(fit2, outcome= FALSE)
+Y.hat.2 = predict(fit2, test, type="class")$fit;
+ctable2 = table(test$Duration, Y.hat.2)
+correct.rate2 = sum(diag(ctable2)[1:3])/n;
+correct.rate2
+```
+
+With the Ordinal Model, you get a correct classification rate of 66.6%.
+
+## Excercise 6.5
+
+First, we download the data and divide it into a training and test set based on the observation number
+```{r}
+mammogram <- read.csv("C:/Users/Jeff/Downloads/Mammography.csv")
+mammogram$OBS <- NULL
+training <- mammogram[seq(1, nrow(mammogram), 2),]
+test <- mammogram[seq(2, nrow(mammogram), 2),]
+```
+
+# Part a.
+
+```{r}
+training1 = mlogit.data(data = training, choice = "ME", shape = "wide", varying = NULL)
+fit1=mlogit(ME ~ 0|PB + HIST, data = training1, reflevel = "2") 
+summary(fit1)
+
+Y.prob.1 = fitted(fit1, outcome= FALSE)
+n = nrow(test)
+Y.hat.1 = rep(0,n);
+for(i in 1:n){if(max(Y.prob.1[i,]) == Y.prob.1[i,1]){Y.hat.1[i]=2;}else if(max(Y.prob.1[i,]) == Y.prob.1[i,2]){Y.hat.1[i]=1;}else if(max(Y.prob.1[i,]) == Y.prob.1[i,3]){Y.hat.1[i]=3;}}
+
+
+ctable1 = table(test$ME, Y.hat.1)
+correct.rate1 = (ctable1[1,1] + ctable1[3,2]) / nrow(test)
+ctable1
+correct.rate1
+```
+
+The correct classification rate is 51%.
+
+## Part b.
+```{r}
+training$ME.ordering = ifelse(training$ME == 0, 1,ifelse(training$ME == 2, 2, ifelse(training$ME == 1, 3, 5)))
+training$ME.ordered = as.ordered(training$ME.ordering)
+fit2=clm(ME.ordered ~ PB + HIST, data = training)
+summary(fit2)
+
+Y.hat.2 = rep(0,n)
+Y.prob.2 = fitted(fit2, outcome= FALSE)
+Y.hat.2 = predict(fit2, test, type="class")$fit;
+ctable2 = table(test$ME, Y.hat.2)
+ctable2
+correct.rate2 = (ctable2[1,1] + ctable2[3,3]) / nrow(test)
+correct.rate2
+```
+
+The correct classification rate for the ordinal model is  53%.

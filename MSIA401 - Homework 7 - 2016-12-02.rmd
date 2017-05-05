@@ -1,0 +1,332 @@
+---
+title: "MSIA 410 - Homework 7"
+author: "Jeff Parker"
+date: "December 2, 2016"
+output: html_document
+---
+
+```{r include = FALSE}
+library(pROC)
+library(Rcpp)
+library(mlogit)
+library(ordinal)
+library(MASS)
+```
+
+# Excercise 1
+
+### Nominal Regression
+
+```{r}
+diabetes <- read.csv("C:/Users/Jeff/Downloads/Diabetes. Data.csv")
+diabetes.logit.data = mlogit.data(data = diabetes, choice = "CC", shape = "wide", varying = NULL)
+nominal.fit=mlogit(CC ~ 0|RW + IR + SSPG, data = diabetes.logit.data, reflevel = "3") 
+summary(nominal.fit)
+```
+
+Preliminarily, it looks like SSPG is statististically significant indicator more severe forms of diabetes, 2 and 1. IR also is statistically significant indicator at diabetes form 1 (overt diabetes) from the base case diabetes form 3 (normal diabetes).
+
+```{r}
+Y.prob.nominal = fitted(nominal.fit, outcome= FALSE) #Finding the probabilities of each observation based on the model
+n = nrow(diabetes) #A count of the observations in the dataset
+Y.hat.nominal = rep(0,n) #Creating a variable for the observed outcome
+for(i in 1:n)
+{       if(max(Y.prob.nominal[i,]) == Y.prob.nominal[i,1]) {Y.hat.nominal[i]=3}
+  else if(max(Y.prob.nominal[i,]) == Y.prob.nominal[i,2]) {Y.hat.nominal[i]=1}
+  else if(max(Y.prob.nominal[i,]) == Y.prob.nominal[i,3]) {Y.hat.nominal[i]=2}
+} #Assigning the case to each observation based on the maximum probability
+# Be sure the order of the variables in Y.hat.1 matches the function above
+
+ctable.nominal = table(diabetes$CC, Y.hat.nominal) #Creating a table of the cases by the predicted cases
+correct.rate.nominal = sum(diag(ctable.nominal)[1:3])/n
+correct.rate.nominal # The Correct Classificaiton Rate (CCR)
+```
+
+Therefore, the correct classification rate is 82.8%.
+
+### Ordinal Regresssion
+
+```{r}
+diabetes$CC.ordered = ordered(diabetes$CC, levels = c(1,2,3), labels = c(1,2,3))
+diabetes$CC.ordered = as.ordered(diabetes$CC.ordered)
+fit.ordinal = clm(CC.ordered ~ RW + IR + SSPG, data = diabetes)
+summary(fit.ordinal)
+```
+
+Similiar to the nominal fit, we find in ordinal that SSPG is highly significant, less so is IR. In ordinial though, we find that IR is really only significant between overt diabetes and normal diabetes.
+
+```{r}
+Y.prob.ordinal = fitted(fit.ordinal, outcome= FALSE);
+Y.hat.ordinal = predict(fit.ordinal, diabetes, type="class")$fit
+ctable.ordinal = table(diabetes$CC, Y.hat.ordinal)
+correct.rate.ordinal = sum(diag(ctable.ordinal)[1:3])/n
+correct.rate.ordinal
+```
+
+Therefore, with the ordinal regression we only get a 78% correct classification.
+
+# Excercise 2
+
+### Discriminant Analysis
+
+```{r}
+fit.discriminant <- lda(CC ~ RW + IR + SSPG, data = diabetes, prior = c(1,1,1)/3) #This model is using the package MASS and has equal probability of each case (using prior)
+fit.discriminant # Note no need to use summary to see the output
+```
+
+The output gives us the coefficients of the linear discriminants. LD1 captures about 83% of the seperation.
+
+```{r}
+fit.discriminant <- lda(CC ~ RW + IR + SSPG, data = diabetes, prior = c(1,1,1)/3, CV = TRUE)
+ctable.discriminant = table(diabetes$CC, fit.discriminant$class)
+correct.rate = sum(diag(ctable.discriminant)[1:3])/n
+correct.rate
+```
+
+Therefore, with the discriminant analysis we get a 80% Correct Classification Rate.
+
+# Excercise 3
+
+```{r}
+sysadmin <- read.csv("C:/Users/Jeff/Downloads/SystemAdministrators.csv")
+sysadmin <- sysadmin[1:75,]
+sysadmin$Completed.task = ifelse(sysadmin$Completed.task == "Yes",1,2)
+```
+
+### Part a.
+
+```{r}
+plot(sysadmin$Experience, sysadmin$Training, col = sysadmin$Completed.task, pch = sysadmin$Completed.task, xlab = "Experience", ylab = "Training")
+```
+
+First of all, Experience is much more likely than training to signal completed task. However, somewhere around 9 years of experience, the System Admins were able to complete the tasks in the given time. This is the case for all training credits completed.
+
+### Part b.
+
+```{r}
+fit.discriminant <- lda(Completed.task ~ Experience + Training, data = sysadmin, prior = c(1,1)/2)
+fit.discriminant
+fit.discriminant <- lda(Completed.task ~ Experience + Training, data = sysadmin, prior = c(1,1)/2, CV = TRUE)
+n=nrow(sysadmin)
+ctable.discriminant = table(sysadmin$Completed.task, fit.discriminant$class)
+ctable.discriminant
+```
+
+Above we have the classifications for each category
+
+```{r}
+1 - diag(prop.table(ctable.discriminant, 1))
+correct.rate = sum(diag(ctable.discriminant)[1:2])/n
+1 - correct.rate
+```
+
+Discriminant analysis misclassified 20% of No's and 10% of Yes's. Overall the analysis misclassified 12% of observations.
+
+### Part c.
+
+```{r}
+fit.discriminant <- lda(Completed.task ~ Experience + Training, data = sysadmin, prior = c(1,1)/2)
+predict(fit.discriminant, newdata = data.frame(Experience = 4, Training = 6))$posterior
+```
+
+Since there is a 99% chance the person cannot complete the task, I would classify this as a "No".
+
+### Part D.
+```{r}
+fit.discriminant <- lda(Completed.task ~ Experience + Training, data = sysadmin, CV = TRUE) #When the prior is removed, lda uses the prior probabilities
+ctable.discriminant = table(sysadmin$Completed.task, fit.discriminant$class)
+correct.rate = sum(diag(ctable.discriminant)[1:2])/n
+correct.rate
+```
+
+With using the prior probabilities the misclassification rate is 10%
+
+```{r}
+fit.discriminant <- lda(Completed.task ~ Experience + Training, data = sysadmin,prior = c(.1466666,.8533333), CV = TRUE)
+table(fit.discriminant$class)
+ctable.discriminant = table(sysadmin$Completed.task, fit.discriminant$class)
+correct.rate = sum(diag(ctable.discriminant)[1:2])/n
+1-correct.rate
+```
+
+With using the posterior probabilities the misclassification rate is the same at 10%. However, the misclassification rate of the 'yes's' and 'no's' is different.
+
+# Exercise 4
+
+```{r}
+drugs <- read.csv("C:/Users/Jeff/Downloads/Drugs Data.csv")
+drugs <- drugs[1:16,]
+```
+
+### Multiple Regression without Transforming D
+
+```{r}
+lmfit <- lm(D ~ P + M, data = drugs)
+summary(lmfit)
+#plot(drugs[2:4])
+sum((drugs$D-lmfit$fitted)^2) #SSE
+```
+
+### Multiple Regression with a Square Root Transformation on D
+
+```{r}
+lmfit.sqrt <- lm(sqrt(D) ~ P + M, data = drugs)
+summary(lmfit.sqrt)
+sum((drugs$D-lmfit.sqrt$fitted^2)^2) #SSE
+```
+
+### Poisson Regression using GLM
+
+```{r}
+fit.poisson=glm(D ~ P + M, data=drugs, family=poisson(log))
+summary(fit.poisson)
+sum((drugs$D-fit.poisson$fitted)^2) # SSE
+```
+
+The Poisson transformation has the best SSE and all the variables are significant. It is the best model to use in the situation.
+
+# Exercise 5 (7.2)
+
+### Part a.
+
+The coefficients for the CHD are all greater than the coefficients for the NCHD. Therefore, if the L's are calculated for someone with a higher age, higher DBP, or higher CHL then the L will be the highest for the CHD group.
+
+### Part b.
+To calculate the probability, first we need to find the L's:
+$$
+L_n = \beta_0 + \beta_1 (x_1) + \beta_2 (x_2) + ... + \beta_n (x_n)
+$$
+```{r}
+Age = 50
+DBP = 95
+CHL = 210
+l_NCHD = -23.561 + 0.027*(Age) + 0.338*(DBP) + 0.075*(CHL)
+l_CHD = -28.726 + 0.072*(Age) + 0.360*(DBP) + 0.079*(CHL)
+```
+
+Now, we can find the probailities:
+$$
+\pi_1^* = \frac{exp(L_1)}{\sum_{n=1}^{\infty} exp(L_i)}
+$$
+
+```{r}
+pi_NCHD = exp(l_NCHD) / (exp(l_NCHD) + exp(l_CHD))
+pi_CHD = exp(l_CHD) / (exp(l_NCHD) + exp(l_CHD))
+pi_NCHD
+pi_CHD
+```
+
+Therefore, the $\pi_{NCHD}^* = 49.6%$ and $\pi_{CHD}^* = 50.4%$.The observation would be classified as CHD.
+
+### Part c. 
+
+Using Euclidean Distances from the mean vector to classify.
+
+```{r}
+mean_NCHD = c(44.81, 86.99, 201.27)
+mean_CHD = c(56.86,95.62,221.51)
+new_obs = c(50,95,210)
+dist(rbind(mean_NCHD, new_obs))
+dist(rbind(mean_CHD, new_obs))
+```
+
+The shortest distance between the observation and the means is to the NCHD. This differs from the probability classification obtained in part b. However, the Euclidean distance uses different units in the measurement so it is not reliable.
+
+# Excercise 6 (7.3)
+
+```{r}
+iris <- read.csv("C:/Users/Jeff/Downloads/Iris.csv")
+fit.discriminant <- lda(Species_No ~ Petal_width + Petal_length + Sepal_width + Sepal_length, data = iris, CV = TRUE)
+ctable.discriminant = table(iris$Species_No, fit.discriminant$class)
+correct.rate = sum(diag(ctable.discriminant)[1:3])/nrow(iris)
+correct.rate
+fit.discriminant <- lda(Species_No ~ Petal_width + Petal_length + Sepal_width + Sepal_length, data = iris)
+fit.discriminant
+```
+
+This following model correctly classifies 98% of responses:
+$$
+Group 1 = 0.246 * \text{Petal_width} + 1.462 * \text{Petal_length} + 3.428 * \text{Sepal_width} + 5.006 * \text{Sepal_length}\\
+Group 2 = 1.326 * \text{Petal_width} + 4.260 * \text{Petal_length} + 2.770 * \text{Sepal_width} + 5.936 * \text{Sepal_length}\\
+Group 3 = 2.026 * \text{Petal_width} + 5.552 * \text{Petal_length} + 2.974 * \text{Sepal_width} + 6.588 * \text{Sepal_length}\\
+$$
+
+### Part b.
+
+Given a new observation, calculate the posterior probabilities.
+
+```{r}
+Petal_width = 1.5
+Petal_length = 4
+Sepal_width = 3
+Sepal_length = 5.5
+Group_1 = 0.246 * Petal_width + 1.462 * Petal_length + 3.428 * Sepal_width + 5.006 * Sepal_length
+Group_2 = 1.326 * Petal_width + 4.260 * Petal_length + 2.770 * Sepal_width + 5.936 * Sepal_length
+Group_3 = 2.026 * Petal_width + 5.552 * Petal_length + 2.974 * Sepal_width + 6.588 * Sepal_length
+Group_1_pi = exp(Group_1) / (exp(Group_1) + exp(Group_2) + exp(Group_3))
+Group_2_pi = exp(Group_2) / (exp(Group_1) + exp(Group_2) + exp(Group_3))
+Group_3_pi = exp(Group_3) / (exp(Group_1) + exp(Group_2) + exp(Group_3))
+Group_1_pi
+Group_2_pi
+Group_3_pi
+```
+
+Since the probability is highest for Group 3, this observation would be classified as Group 3.
+
+# Excercise 7 (8.2)
+
+Given the Gamma Distribution:
+$$
+f(y; \lambda, \alpha) = \frac{1}{\Gamma(\alpha)} \lambda^\alpha e^-\lambda_y y^{\alpha - 1}
+$$
+We need to put it in Natural Exponential Family Form:
+$$
+f(y; \theta, \phi) = \exp \left\lbrace {\frac{y\theta - b\theta}{a(\phi)} + c(y_i;\phi)}\right\rbrace
+$$
+Log both sides of the Gamma Distribution:
+$$
+\log f(y) = \alpha \log \beta - \log(\Gamma(\alpha)) + (\alpha - 1) \log y + \lambda y
+$$
+Exponentiate both sides:
+$$
+f(y) = \exp \left\lbrace {-\lambda y + \alpha \log \lambda + (\alpha - 1) \log y - \log(\Gamma(\alpha))} \right\rbrace
+$$
+Divide by $-1 / \alpha$ on one side:
+$$
+f(y) = \exp \left\lbrace {\frac{\frac{\lambda}{\alpha} y + \log \lambda}{\frac{-1}{\alpha}} + (\alpha - 1) \log y - \log(\Gamma(\alpha))} \right\rbrace
+$$
+Now we have our Exponential Family From:
+$$ \theta = \frac{\lambda}{\alpha} \\
+\phi = \frac{1}{\alpha} \\
+a(\phi) = \frac{-1}{\alpha} \\
+$$
+Now we have to do some algebra on the $\lambda$:
+$$
+\lambda = \theta \alpha = \frac{\theta}{\phi} \\
+\log \lambda = \log \theta - \log \phi
+$$
+Subsitution into the equation:
+$$
+f(y) = \exp \left\lbrace {\frac{\theta y + \log \theta}{- \phi} + \frac{ \log \phi}{\phi} + (\frac{1}{\phi} - 1) \log y - \log(\Gamma(\frac{1}{\phi}))} \right\rbrace
+$$
+Now we have the Exponential Family Form:
+$$
+f(y) = \exp \left\lbrace {\frac{\theta y + \log \theta}{- \phi} + c(y, \phi)} \right\rbrace
+$$
+Where:
+$$
+b(\theta) = \log \theta \\
+a(\phi) = - \phi
+$$
+Now we can find our mean and variance. Recall:
+$$ \theta = \frac{\lambda}{\alpha} \\
+\phi = \frac{1}{\lambda}
+$$
+Therefore our mean $\mu$ equals the derivative of $b(\theta)$ with respect to $\theta$:
+$$
+\mu = \frac{1}{\theta} = \frac{\alpha}{\lambda}
+$$
+And our variance of the expontential distribution is:
+$$
+Var(y) = \frac{\phi}{\theta ^2} = \frac{1}{\alpha} (\frac{\alpha ^2}{\lambda ^2}) = \frac{\alpha}{\lambda ^2}
+$$

@@ -1,0 +1,290 @@
+---
+title: "MSIA401 - Homework 2"
+author: "Jeff Parker"
+date: "October 6, 2016"
+output: html_document
+---
+## 3.1
+
+Rewriting $y_i = \beta x_i +\epsilon_i$ in matrix form:
+
+$$\left[\begin{array}
+{rrr}
+y_1 \\
+y_2 \\
+... \\
+y_n \end{array}\right] = \beta 
+\left[\begin{array}
+{rrr}
+x_1 \\
+x_2 \\
+... \\
+x_n \end{array}\right] +
+\left[\begin{array}
+{rrr}
+\epsilon_1 \\
+\epsilon_2 \\
+... \\
+\epsilon_n 
+\end{array}\right]
+$$
+
+Using ${\bf \hat{\beta}} = (\textbf{X}^`\textbf{X})^{-1} \textbf{X}^`\textbf{y}$ we can break it down into two parts:
+$$\textbf{X}^`\textbf{X} = \left[\begin{array}
+{rrr}
+\ x_1 x_2 ... x_n \end{array}\right] \left[\begin{array}
+{rrr}
+\ x_1 \\
+\ x_2 \\
+\ ... \\
+\ x_n \end{array}\right] = \sum_{i=1}^{n} x^2_i
+$$
+$$\textbf{X}^`\textbf{y} = \left[\begin{array}
+{rrr}
+\ x_1 x_2 ... x_n \end{array}\right] \left[\begin{array}
+{rrr}
+\ y_1 \\
+\ y_2 \\
+\ ... \\
+\ y_n \end{array}\right] = \sum_{i=1}^{n} x_i y_i
+$$
+Substituting those terms we get:
+$$
+{\bf \hat{\beta}} = (\textbf{X}^`\textbf{X})^{-1} \textbf{X}^`\textbf{y} = 
+\frac{\textbf{X}^`\textbf{y}}
+{\textbf{X}^`\textbf{X}} = 
+\frac{\sum_{i=1}^{n} x_i y_i}
+{\sum_{i=1}^{n} x^2_i}
+$$
+
+Therefore, LS estimator of $\beta$ equals $\frac{\sum_{i=1}^{n} x_i y_i}{\sum_{i=1}^{n} x^2_i}$
+
+##3.6
+
+Letting $R^2_p$ and $R^2_q$ denote the $R^2$'s for the full model with $p$ predictors and a partial model with $q < p$ predictors. We start with some definitions:
+$$ F = \frac{MSH_q}{MSE_p} \hspace{2cm} MSE_p = \frac{SSE_p}{n-(p+1)} \hspace{2cm} MSH_q = \frac{SSH_q}{r}
+$$
+Substituting the formulas into the F equation we get:
+$$ F = \frac{SSH_q/r}{SSE_P/[n-(p+1)]}
+$$
+The $SSH_p$ and $SSE_q$ can be found by using the following equations:
+$$ SSH_q = SSE_q - SSE_p \hspace{2cm} SSE_q = SST(1-R^2_q) \hspace{2cm} SSE_p = SST(1-R^2_p)
+$$
+Substituting these equations into the F equation we get:
+$$ F = \frac{(SSE_q - SSE_p)/r}{SSE_p/[n-(p+1)]} \hspace{2cm}
+F = \frac{(SST(1-R^2_q)-SST(1-R^2_p))/r}{SST(1-R^2_p)/[n-(p+1)]}
+$$
+Using algebra we can rearrange some of the terms:
+$$ F = \frac{SST(1-R^2_q - 1-R^2_p)/r}{SST(1-R^2_p)/[n-(p+1)]}
+$$
+The SST's cancel out in the fraction. We substitute $r = p-q$ and continue to rearrange some of the terms and we get the formula for the extra SS F-statistic:
+$$ F = \frac{(R^2_p - R^2_q)/(p-q)}{(1-R^2_p)/[n-(p+1)]}
+$$
+Using the following parameters in the formula:
+```{r, include=TRUE}
+n = 26
+p = 5
+q = 3
+r2_p = .9
+r2_q = .8
+F <- ((r2_p - r2_q)/(p - q))/((1-r2_p)/(n - (p + 1)))
+p_value = qf(.99, df1=2, df2=20) 
+F
+p_value
+```
+We calculate an F-statistic = `r F`; Numerator degrees of freedom:  n - 1 = 2; Denominator degrees of freedom:  n - 1 = 20; Significance level:  \alpha = 0.01
+Since our p-value 5.8489 < 10, we reject the $H_0$. Therefore, increase in $R^2$ is statistically significant.
+
+##3.12
+Please see the attached hand-written calculations.
+
+##3.13
+####  a) 
+Fit Cobb-Douglas production function $y= \beta x^{\beta_1}_1 x^{\beta_2}_2$ where $\beta_1$ and $\beta_2$ are the capital and labor elasticities:
+
+```{r, include=TRUE}
+cd <- read.csv("C:/Users/Jeff/Downloads/Cobb-Douglas.csv")
+lmfit <- lm(log(cd$output) ~ log(cd$capital)+log(cd$labor))
+lmfit
+```
+
+####  b)
+
+Check to see if there are constant returns to scale.
+  i) $H_0 : \beta_1 +\beta_2 - 1 = 0$
+  Calculating the estimates of Var($\beta_1$),Var($\beta_1$) and Cov($\hat{\beta_1},\hat{\beta_2}$)
+
+```{r}
+vcov(lmfit)
+```
+Var($\hat{\beta_1}$) = 0.0002954123
+Var($\hat{\beta_2}$) = 0.0005355372
+Cov($\hat{\beta_1},\hat{\beta_2}$) = -0.0002674770
+
+Assuming the errors are i.i.d. We calcuate the t-statistic using the following:
+$$
+t = \frac{(\hat{\beta_1} + \hat{\beta_2})}{\sqrt{Var(\hat{\beta_1} + Var(\hat{\beta_2})+ 2Cov(\hat{\beta_1},\hat{\beta_2})}} = \frac{(0.2076 + 0.7148) - 1}{\sqrt{0.0002954123 + 0.0005355372 + 2*-0.0002674770}}
+$$
+
+```{r}
+t <- ((0.2076 + 0.7148) - 1)/(sqrt(0.0002954123 + 0.0005355372 + 2*-0.0002674770))
+t
+```
+With the t score we can get a probability with 567 d.f. and \alpha = 1%
+```{r}
+dt(t, 567)
+
+```
+Since 3.933229e-06 \ngtr 0.01 we cannot regect the $H_0$. So there is constant returns to scale.
+
+  ii)
+  Fitting the full model and the partial model:
+```{r}
+cd$log_cap_labor <- log(cd$capital) - log(cd$labor)
+cd$log_out_labor <- log(cd$output) - log(cd$labor)
+model_full <- lm(cd$log_out_labor ~ log(cd$capital) + log(cd$labor))
+model_part <- lm(cd$log_out_labor ~ cd$log_cap_labor)
+summary(model_full)
+summary(model_full)
+```
+$R^2_{full}$ = 0.2393
+$R^2_{partial}$ = 0.2393
+
+$$ F = \frac{R^2_p - R^2_q)/(p-q)}{(1-R^2_p)/[n-(p+1)]}
+$$
+
+
+##3.14
+
+```{r, include=TRUE}
+Region <- c(1,2,3,4,5,6,7,8,9,10)
+Salesmen <- c(31,46,40,49,38,49,31,38,33,42)
+Expenditure <- c(1.85,2.80,2.20,2.85,1.80,2.80,1.85,2.30,1.60,2.15)
+Sales <- c(4.20,7.28,5.60,8.12,5.46,7.42,3.36,5.88,4.62,5.88)
+Sales_data <- data.frame(Region,Salesmen,Expenditure,Sales)
+```
+#### a)
+Calculate the correlation matrix $\textbf{R}$ between $x_1$ and $x_2$ and the correllation vector $\textbf{r}$ between $y$ and $x_1$, $x_2$.
+$$
+\textbf{R} = \frac{1}{n-1} \textbf{X*`} \textbf{X*} \hspace{2cm} \textbf{r} = \frac{1}{n-1} \textbf{X*`} \textbf{y*}
+$$
+
+```{r, inclue=TRUE}
+X_Bold <- matrix(c(Sales_data$Salesmen,Sales_data$Expenditure), nrow=10,ncol=2)
+Y_Bold <- matrix(Sales_data$Sales, nrow=10, ncol=1)
+R_Bold <- (1/(nrow(Sales_data)-1)) * t(X_Bold) %*% X_Bold
+r_bold <- (1/(nrow(Sales_data)-1)) * t(X_Bold) %*% Y_Bold
+```
+$$\textbf{R} = \left[\begin{array}
+{rrr}
+\ 1797.8889 & 100.805556 \\
+\ 100.8056  & 5.688889 \\
+\end{array}\right] \hspace{2cm}
+\textbf{r} = \left[\begin{array}
+{rrr}
+\ 265.00444 \\
+\ 14.88822 \\
+\end{array}\right]
+$$
+
+
+#### b)
+Calculate the standardized regression coefficients $\hat{\beta^*_1}$ and  $\hat{\beta^*_2}$ from $\textbf{R}$ and $\textbf{r}$ for the model.
+
+First we standardize the all the variables:
+$$ y^*_i = \frac{y_i - \bar{y}}{s_y} \hspace{2cm} x^*_i = \frac{x_{i,j} - \bar{x}_j}{s_{x_j}}
+$$
+```{r, inclue=TRUE}
+sm_std <- (Salesmen - mean(Salesmen))/sd(Salesmen)
+exp_std <- (Expenditure - mean(Expenditure))/sd(Expenditure)
+sales_std <- (Sales - mean(Sales))/sd(Sales)
+```
+
+Then we calculate $\textbf{R}$ and $\textbf{r}$ from the standardized data:
+$$
+\textbf{R} = \frac{1}{n-1} \textbf{X*`} \textbf{X*} \hspace{2cm} \textbf{r} = \frac{1}{n-1} \textbf{X*`} \textbf{y*}
+$$
+
+```{r}
+X_Bold <- matrix(c(sm_std,exp_std), nrow=10,ncol=2)
+Y_Bold <- matrix(sales_std, nrow=10, ncol=1)
+R_Bold <- (1/(nrow(Sales_data)-1)) * t(X_Bold) %*% X_Bold
+r_bold <- (1/(nrow(Sales_data)-1)) * t(X_Bold) %*% Y_Bold
+```
+
+$$\textbf{R} = \left[\begin{array}
+{rrr}
+\ 1.0000000 & 0.9132577 \\
+\ 0.9132577  & 1.0000000 \\
+\end{array}\right] \hspace{2cm}
+\textbf{r} = \left[\begin{array}
+{rrr}
+\ 0.9708553 \\
+\ 0.9040219 \\
+\end{array}\right]
+$$
+
+Now we can calculate $\mathbf{\hat{\beta^*}}$:
+```{r}
+Beta_Hat_Bold <- solve(R_Bold) %*% r_bold
+```
+$$
+\mathbf{\hat{\beta^*}} = \mathbf{R}^{-1} \mathbf{r} = \left[\begin{array}
+{rrr}
+\ 0.8752107 \\
+\ 0.1047290 \\
+\end{array}\right]
+$$
+
+#### c)
+Check that $\hat{\beta^*_1}$ and $\hat{\beta^*_2}$ match $\hat{\beta_1}$ and $\hat{\beta_2}$ when scaled appropriately. Calculate $\hat{\beta_0}$.
+$$\hat{\beta^*_1} = 0.8752107 \hspace{2cm} \hat{\beta^*_2} = 0.1047290$$ 
+```{r}
+lm(Sales ~ Salesmen + Expenditure)
+```
+$$ \hat{\beta_1} =  0.1922 \hspace{2cm} \hat{\beta_2} = 0.3406 $$
+No we can scale the $\hat{\beta^*}$'s to match the above:
+```{r}
+sd_Sales <- sd(Sales)
+sd_Salesmen <- sd(Salesmen)
+sd_Exp <- sd(Expenditure)
+Beta_Hat_Bold[1]*sd_Sales/sd_Salesmen
+Beta_Hat_Bold[2]*sd_Sales/sd_Exp
+```
+The $\beta$'s match:
+$$ \hat{\beta_1} =  0.1922 \hspace{2cm} \hat{\beta_2} = 0.3406 $$
+
+#### d)
+In this case the scaled predictor is more inititive to used because the variables have different scales. Looking just at the Beta's one might think that expenditure has more effect on sales when in fact it is just a percent change in the expenditure that has that effect. The number of salesmen have a much higher effect in sales.
+
+## 3.14
+#### a)
+Fit a model using the given data using Male and Purchase as reference categories. Check the fitted equation matches $\hat{log{Salary}} = 4.4429 + 0.0075YrsEm + 0.00170PriorYR + 0.0170Educ + 0.0004Super + 0.0231Female - 0.0388Advert - 0.0573Engg - 0.0938Sales.
+```{r}
+Salary <- read.csv("C:/Users/Jeff/Downloads/TEMCO.csv")
+Salary$Female <- as.integer(ifelse(Salary$Gender == 'Female',1,0))
+Salary$Advert <- as.integer(ifelse(Salary$Dept == 'Advertse',1,0))
+Salary$Engg <- as.integer(ifelse(Salary$Dept == 'Engineer',1,0))
+Salary$Sales <- as.integer(ifelse(Salary$Dept == 'Sales',1,0))
+Salary$Male <- as.integer(ifelse(Salary$Gender == 'Male',1,0))
+Salary$Purchase <- as.integer(ifelse(Salary$Dept == 'Purchase',1,0))
+
+lm(log10(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$PriorYr + Salary$Education + Salary$Super + Salary$Female + Salary$Advert + Salary$Engg + Salary$Sales)
+```
+The coefficients match.
+
+#### b)
+Using Female and Sales as reference categories we get the following coefficients:
+```{r}
+lm(log10(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$PriorYr + Salary$Education + Salary$Super + Salary$Male + Salary$Advert + Salary$Engg + Salary$Purchase)
+```
+
+#### c)
+Being an Engineer is statistically significant when Sales is the base case but it is not statistically significant when Purchase is the base case. This means Engineer has an probable effect on salary compared to Purchase, but it cannot show a probable effect on salary compared to Sales. This is probably due to the fact that Engineers and Purchase both have high salaries compared to Sales. The average Salary difference between Engineer and Purchase is small. Therefore, being an Engineer has an effect on salary when compared to Sales, but not when compared to Purchase.
+
+#### d)
+Rerunning the regression without PriorYr and Super as they are insignificant.
+```{r}
+lm(log10(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$Education + Salary$Advert + Salary$Engg + Salary$Purchase)
+```
+With the refit model, all the included variables have strong betas. We can conclude that the an employees departments, regardless of the actually position, has the most effect on salary. Years employeed and years of education also have some effect, but not as much as the department. 

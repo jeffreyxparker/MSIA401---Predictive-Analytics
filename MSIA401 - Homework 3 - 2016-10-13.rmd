@@ -1,0 +1,239 @@
+---
+title: "MSIA401 - Homework 3"
+author: "Jeff Parker"
+date: "October 11, 2016"
+output: html_document
+---
+
+# Exercise 1
+
+```{r}
+cigarettes <- read.csv("C:/Users/Jeff/Downloads/cigarette.CSV")
+attach(cigarettes)
+```
+
+## a.
+```{r}
+lmfit <- lm(Sales ~ Age + HS + Income + Black + Female + Price)
+summary(lmfit)
+```
+The p-value's for HS and Female are highly non significant, 0.94008 and 0.85071 respectively.
+
+```{r}
+lmfit <- lm(Sales ~ Age + Income + Black + Price + HS + Female + HS:Female)
+summary(lmfit)
+```
+Jointly, the p-value of HS:Female is 0.68297. This p-value is still non-significant at most alphas. 
+
+## b.
+
+```{r}
+confint.lm(lmfit, level = .9)
+```
+
+Our confidence interval for Income is (-1.606320e+00, 0.97494061). Our $\beta_{Income}$ (0.01920) is between this interval. This agrees with our P-value at a $\alpha$ = 0.10 because the P-value $= 0.06997 < 0.10 =$ $\alpha$. 
+
+
+#### c.
+```{r}
+lmfit <- lm(Sales ~ Income + Price)
+summary(lmfit)
+```
+$$
+\text{Full Model} R^2 : 0.3235 \hspace{2cm} \text{Partial Model} R^2 : 0.2503\\
+$$
+Using the following formula:
+$$
+F = \frac{(R^2_p - R^2_q)/(p-q)}{(1-R^2_p)/[n-(p+1)]}
+$$
+```{r, include=TRUE}
+n = 51
+p = 6
+q = 2
+alpha = 0.1
+r2_p = 0.3235
+r2_q = 0.2503
+F <- ((r2_p - r2_q)/(p - q))/((1-r2_p)/(n - (p + 1)))
+p_value = qf(1-alpha, df1= p-q , df2= n - (p+  1)) 
+F
+p_value
+```
+Since our p-value: $2.077194 \nless 1.141784$ = F, we cannot reject the $H_0$. Therefore, the drop in $R^2$ is not statistically significant. The full model increases the $R^2$ but the increase is not enough to justify the extra variables. Therefore, even though it is better fit from the $R^2$ perspective, the simpler, more elegant model with few variables is better model.
+
+# Exercise 2
+
+```{r}
+election <- read.csv("C:/Users/Jeff/Downloads/election.CSV")
+election$D1 <- 0
+election$D1[which(election$D == 1)] <- 1 
+election$D2 <- 0
+election$D2[which(election$D == -1)] <- 1
+attach(election)
+lmfit <- lm(V ~ I + D + G:I)
+summary(lmfit)
+```
+
+## a.
+With the three options of D, the model can be written as:
+$$
+\begin{equation}
+    E(y)=
+    \begin{cases}
+      \beta_0 + \beta_1*1 + \beta_2*1 + \beta_3 (G:1) + \epsilon = \beta_0 + \beta_1 + \beta_2 + \beta_3 G + \epsilon & \text{Democrat incumbent running} \\
+      \beta_0 + \beta_1*0 + \beta_2*0 + \beta_3 (G:0) = \beta_0 + \beta_1 I + \epsilon & \text{Incumbent is not running} \\
+      \beta_0 + \beta_1*-1 + \beta_2*-1 + \beta_3 (G:-1) + \epsilon = \beta_0 - \beta_1 - \beta_2 - \beta_3 G + \epsilon & \text{Republic incumbent running} \\
+    \end{cases}
+\end{equation}
+$$
+
+## b.
+
+```{r}
+lmfit <- lm(V ~ D + G:I)
+summary(lmfit)
+```
+I and G:I are measuring two different effects of variables on the dependent variable. Common practice is that the I should be included in the model. However, it is not statisically significant. I indicates the party of the incumbent (if any), while G:I indicates the GDP growth given the incumbent options. Logically, G:I could effect the dependent variable at different rates. If you remove I and G from the model, all of the variables are statistically significant and the model is much more elegant. For this reason, I would remove them from the model.
+
+# Excercise 3
+
+## a.
+Using the fitted model $V = \beta_0 + \beta_1 I +\alpha_1 D_1 +\alpha_1 D_1 + \beta_2 (G:I) + \epsilon$ we can write the following three models:
+$$
+\begin{equation}
+    E(y)=
+    \begin{cases}
+      \beta_0 + \beta_1 + \alpha_1 + \beta_1 (G) + \epsilon & \text{Democrat incumbent running} \\
+      \beta_0 + \beta_1 I + \beta_1 (G:I) + \epsilon & \text{Incumbent not running} \\
+      \beta_0 - \beta_1 + \alpha_2 - \beta_1 (G) \epsilon & \text{Republican incumbent running} \\
+    \end{cases}
+\end{equation}
+$$
+
+## b.
+
+Showing that the model in Exercise 2 is obtained by assuming $\alpha_1 = -\alpha_2$
+$$
+\begin{align}
+&V = \beta_0 + \beta_1 I +\alpha_1 D_1 +\alpha_1 D_1 + \beta_3 (G:I)  & \text{Dummy variable model}\\
+&V = \beta_0 + \beta_1 I + \beta_2 D + \beta_3 (G:I)                  & \text{Original model from Excercise 2}\\
+&0 = \beta_2 D -\alpha_1 D_1 -\alpha_1 D_1                            & \text{Subtracting like terms}\\
+&\beta_2 D = +\alpha_1 D_1 +\alpha_1 D_1                              & \text{Algebra}\\
+\end{align}
+$$
+Case #1
+$$
+D = 1 \hspace{2cm} D_1 = 1 \hspace{2cm} D_2 = 0\\
+\begin{align}
+&\beta_2 (1) = +\alpha_1 (1) +\alpha_2 (0)                           & \text{substituting in terms}\\
+&\beta_2 = \alpha_1\\
+\end{align}
+$$
+Case #2
+$$
+D = 1 \hspace{2cm} D_1 = 1 \hspace{2cm} D_2 = 0\\
+\begin{align}
+&\beta_2 (0) = +\alpha_1 (0) +\alpha_2 (0)                           & \text{substituting in terms}\\
+&0 = 0\\
+\end{align}
+$$
+Case #3
+$$
+D = 1 \hspace{2cm} D_1 = 1 \hspace{2cm} D_2 = 0\\
+\begin{align}
+&\beta_2 (-1) = +\alpha_1 (0) +\alpha_2 (-1)                         & \text{substituting in terms}\\
+&\beta_2 = \alpha_2\\
+&\beta_2 = - \alpha_2\\
+\end{align}
+$$
+Now comparing the terms from case #1 and case #3
+$$\beta_2 = \alpha_1 = - \alpha_2
+$$
+
+## c.
+
+```{r}
+lmfit <- lm(V ~ I + D1 + D2 + G:I)
+summary(lmfit)
+```
+Fit the model and test that $H_0 : \alpha_1 = -\alpha_2$\
+Alternatively $H_0 : \alpha_1 + \alpha_2 = 0$
+
+```{r}
+vcov(lmfit)
+```
+
+$$
+t = \frac{(\hat{\alpha_1} + \hat{\alpha_2})}{\sqrt{Var(\hat{\alpha_1}) + Var(\hat{\alpha_2})+ 2Cov(\hat{\alpha_1},\hat{\alpha_2})}}
+$$
+
+```{r}
+alpha_1 = 0.062530
+alpha_2 = -0.043788
+var_alpha_1 = 8.504655e-04
+var_alpha_2 = 7.336822e-04
+covar_alpha_1_alpha_2 = 5.692558e-05
+df = 21 - 6 + 1
+t_score <- (alpha_1 + alpha_2)/(sqrt(var_alpha_1 + var_alpha_2 + 2*covar_alpha_1_alpha_2))
+t_crit <- c(qt(.05/2, df),qt(1-.05/2,df))
+t_score
+t_crit
+```
+
+Since the t-score (0.454828) is between the critical range (-2.119905, 2.119905), we cannot reject the $H_0$.
+Therefore, $\alpha_1$ and $\alpha_2$ do not have statistically significant explanatory power in the model.
+
+# Excercise 4
+
+## a.
+```{r}
+GPA <- read.csv("C:/Users/Jeff/Downloads/GPA.CSV")
+lmfit <- lm(GPA$GPA ~ GPA$Verbal + GPA$Math + I(GPA$Verbal^2) + I(GPA$Math^2) + GPA$Verbal:GPA$Math)
+summary(lmfit)
+plot(lmfit,which=1:2)
+```
+
+Looking at the Residuals vs Fitted, it looks like the variances are slightly funnel shaped which means we may be seeing some heterscedasticity. The variances are distributed at a exponential pattern. A log transformation will likely bring this back to a state of homoscedasticity. Looking at the Q-Q plot, it appears that we do not have any major problems with normality. In short, our homoscedasticity assumption may be violated and this model is a candidate for a log transformation.
+
+## b.
+
+```{r}
+lmfit <- lm(log10(GPA$GPA) ~ GPA$Verbal + GPA$Math + I(GPA$Verbal^2) + I(GPA$Math^2) + GPA$Verbal:GPA$Math)
+summary(lmfit)
+plot(lmfit,which=1:2)
+```
+
+With the log transformation, the Residuals vs Fitted plot looks much better, there is no decernible pattern. So are variance is ideal and homoscedastic. The log transformation also helped with our normality assumption as the standardized residuals are much closer to the theoretical quantiles.
+
+#Excercise 4.8
+
+```{r}
+Salary <- read.csv("C:/Users/Jeff/Downloads/TEMCO.csv")
+Salary$Female <- as.integer(ifelse(Salary$Gender == 'Female',1,0))
+Salary$Advert <- as.integer(ifelse(Salary$Dept == 'Advertse',1,0))
+Salary$Engg <- as.integer(ifelse(Salary$Dept == 'Engineer',1,0))
+Salary$Sales <- as.integer(ifelse(Salary$Dept == 'Sales',1,0))
+Salary$Male <- as.integer(ifelse(Salary$Gender == 'Male',1,0))
+Salary$Purchase <- as.integer(ifelse(Salary$Dept == 'Purchase',1,0))
+```
+
+## a.
+
+```{r}
+lmfit <- lm(as.numeric(Salary$Salary) ~ Salary$YrsEm + Salary$Education + Salary$Advert + Salary$Engg + Salary$Sales)
+plot(lmfit,which=2)
+lmfit <- lm(log10(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$Education + Salary$Advert + Salary$Engg + Salary$Sales)
+plot(lmfit,which=2)
+```
+
+In this case the log transformation has not much improved the normality. In both cases, the residuals appear to be distributed very normally. Normality is not a major concern for this model as the sample size is quite large.
+
+## b.
+
+```{r}
+lmfit <- lm(as.numeric(Salary$Salary) ~ Salary$YrsEm + Salary$Education + Salary$Advert + Salary$Engg + Salary$Sales)
+plot(lmfit,which=1)
+lmfit <- lm(log10(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$Education + Salary$Advert + Salary$Engg + Salary$Sales)
+plot(lmfit,which=1)
+```
+
+There does appear to be some heteroscedasticy in the variances of the first model. The log transformation does improve the assumption of homoscedasticity in the second model.

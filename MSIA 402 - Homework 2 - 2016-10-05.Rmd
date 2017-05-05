@@ -1,0 +1,152 @@
+---
+title: "MSIA410 - Homework 2 - 2016-10-05"
+author: "Jeff Parker"
+date: "October 5, 2016"
+output: html_document
+---
+
+## 3.1
+
+y = Beta * x + Epsilon
+
+$$\left[\begin{array}
+{rrr}
+y_1 \\
+y_2 \\
+y_n
+\end{array}\right]
+$$
+
+## 3.6
+n = 26
+p = 5
+q = 3
+r2_p = .9
+r2_q = .8
+
+F = ((r2_p - r2_q)/(p - q))/((1-r2_p)/(n - (p + 1)))
+
+## 3.12
+```{r setup, include=FALSE}
+#a)
+x <- c(1,1,1,2,1,3,1,4,1,5)
+y <- c(2,6,7,9,10)
+X_Bold <- matrix(x, nrow = 5, ncol = 2, byrow = TRUE)
+Y_Bold <- matrix(y, nrow = 5, ncol = 1)
+
+#b)
+X_Transpose <- t(X_Bold)
+X_Transpose_X_Bold <- X_Transpose %*% X_Bold
+inverse <- solve(X_Transpose_X_Bold) #Gets the inverse
+X_Transpose_X_Bold %*% inverse #Checking that this gets an identity matrix
+
+#c)
+X_Transpose_Y <- X_Transpose %*% Y_Bold
+
+#d)
+B_Hat <- inverse %*% X_Transpose_Y
+
+```
+
+## 3.13
+a) Fit Cobb-Douglas production function
+
+```{r setup, include=FALSE}
+Cobb.Douglas <- read.csv("C:/Users/Jeff/Downloads/Cobb-Douglas.csv")
+lmfit <- lm(log(Cobb.Douglas$output) ~ log(Cobb.Douglas$capital)+log(Cobb.Douglas$labor))
+summary(lmfit)
+```
+Intercept: Beta_0 = e^-1.71146
+Capital: Beta_1 = 0.20757
+Labor: Beta_2 = 0.71485
+
+b) Check to see if there are constant returns to scale
+  i) t-test 
+  H_0 : Beta_1 + Beta_2 - 1 = 0
+ 
+```{r setup, include=FALSE}
+X_Bold <- matrix(c(Cobb.Douglas$capital,Cobb.Douglas$labor), nrow = 569, ncol = 2)
+
+
+var_beta_1 <- var(log(Cobb.Douglas$capital))
+var_beta_2 <- var(log(Cobb.Douglas$labor))
+cov_beta1_beta2 <- cov(log(Cobb.Douglas$capital),log(Cobb.Douglas$labor), use = 'everything', method = 'pearson')
+t = ((var_beta_1+var_beta_2)-1)/(sqrt(var_beta_1+var_beta_2+2*cov_beta1_beta2))
+df = nrow(Cobb.Douglas) - ncol(Cobb.Douglas)
+dt(t,df)
+drop1(lmfit, test = "F")
+
+```  
+
+## 3.14
+
+```{r setup, include=FALSE}
+Region <- c(1,2,3,4,5,6,7,8,9,10)
+Salesmen <- c(31,46,40,49,38,49,31,38,33,42)
+Expenditure <- c(1.85,2.80,2.20,2.85,1.80,2.80,1.85,2.30,1.60,2.15)
+Sales <- c(4.20,7.28,5.60,8.12,5.46,7.42,3.36,5.88,4.62,5.88)
+Sales_data <- data.frame(Region,Salesmen,Expenditure,Sales)
+
+#a)
+sm_std <- (Salesmen - mean(Salesmen))/sd(Salesmen)
+exp_std <- (Expenditure - mean(Expenditure))/sd(Expenditure)
+sales_std <- (Sales - mean(Sales))/sd(Sales)
+
+X_Bold <- matrix(c(sm_std,exp_std), nrow=10,ncol=2)
+Y_Bold <- matrix(sales_std, nrow=10, ncol=1)
+g <- (1/(nrow(Sales_data)-1))
+t <- t(X_Bold)
+R_Bold <- g * t(X_Bold) %*% X_Bold
+r_bold <- g * t(X_Bold) %*% Y_Bold
+
+#b)
+
+Beta_Hat_Bold <- solve(R_Bold) %*% r_bold
+
+#c)
+lmfit <- lm(Sales ~ Salesmen + Expenditure)
+sd_Sales <- sd(Sales)
+sd_Salesmen <- sd(Salesmen)
+sd_Exp <- sd(Expenditure)
+
+#Beta_Hat_Salesmen = 0.1922
+#Beta_Hat_Expenditure = 0.3406 
+
+#Checking Beta_Hat_Salesment matches the scaled Beta_Star_Hat
+
+#Beta_Hat_Salesmen = 0.1922
+#The equation below should equal the amount above
+Beta_Hat_Bold[1]*sd_Sales/sd_Salesmen
+
+#Beta_Hat_Expenditure = 0.3406 
+#The equation below should equal the amount above
+Beta_Hat_Bold[2]*sd_Sales/sd_Exp
+
+#Beta_Hat_Salesmen = 0.1922
+#Beta_Hat_Expenditure = 0.3406 
+#Beta_Hat_Star_Salesmen = 0.8752107
+#Beta_Hat_Star_Expenditure = 0.1047290
+
+#In this case the scaled predictor is more inititive to used because the variables have different scales. Looking just at the Beta's one might think that expenditure has more effect on sales when in fact it is just a percent change in the expenditure that has that effect. The number of salesmen have a much higher effect in sales.
+```  
+
+## 3.14
+
+```{r setup, include=FALSE}
+Salary <- read.csv("C:/Users/Jeff/Downloads/TEMCO.csv")
+Salary$Female <- as.integer(ifelse(Salary$Gender == 'Female',1,0))
+Salary$Advert <- as.integer(ifelse(Salary$Dept == 'Advertse',1,0))
+Salary$Engg <- as.integer(ifelse(Salary$Dept == 'Engineer',1,0))
+Salary$Sales <- as.integer(ifelse(Salary$Dept == 'Sales',1,0))
+
+#Just taking the natural log of salary
+lmfit <- lm(log(as.numeric(Salary$Salary)) ~ Salary$YrsEm + Salary$PriorYr + Salary$Education + Salary$Super + Salary$Female + Salary$Advert + Salary$Engg + Salary$Sales)
+summary(lmfit)
+
+#Taking the natural log of everything
+Salary <-data.frame(Salary$Salary,Salary$YrsEm+1,Salary$PriorYr+1,Salary$Education+1,Salary$Super+1,Salary$Female+1,Salary$Advert+1,Salary$Engg+1,Salary$Sales+1)
+lmfit <- lm(log(as.numeric(Salary$Salary)) ~ log(as.numeric(Salary$YrsEm)) + log(as.numeric(Salary$PriorYr)) + log(as.numeric(Salary$Education)) + log(as.numeric(Salary$Super)) + log(as.numeric(Salary$Female)) + log(as.numeric(Salary$Advert)) + log(as.numeric(Salary$Engg)) + log(as.numeric(Salary$Sales)), )
+summary(lmfit)
+
+
+``` 

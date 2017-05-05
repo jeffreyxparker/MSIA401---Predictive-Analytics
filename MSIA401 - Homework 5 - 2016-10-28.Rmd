@@ -1,0 +1,202 @@
+---
+title: "MSIA 401 - Homework 5"
+author: "Jeff Parker"
+date: "October 25, 2016"
+output: 
+  html_document: 
+    theme: readable
+---
+
+# 4.14
+1. First we import our data and our libraries. GLMNET must have the data in matrix form.
+```{r}
+library(car)
+library(glmnet)
+a <- read.csv("C:/Users/Jeff/Downloads/acetylene.csv")
+a$x1_x2 <- a$x1 * a$x2
+a$x1_x3 <- a$x1 * a$x3
+a$x2_x3 <- a$x2 * a$x3
+a$x1_sq <- a$x1^2
+a$x2_sq <- a$x2^2
+a$x3_sq <- a$x3^2
+y <- a$y
+x <- as.matrix(a[c(1,2,3,5,6,7,8,9,10)])
+```
+
+2. We fit a model using lambda in sequences of 0.01 from 0 to 10. We cross-validate our model using three folds of the data.
+```{r}
+ridgefit <- glmnet(x, y, alpha=0,lambda=seq(0,10,0.01))
+ridgecv <- cv.glmnet(x,y,alpha=0,nfold=3,lambda=seq(0,10,0.01))
+```
+
+3. We now find the minimum lambda from all of the options we used.
+```{r}
+lambdaridge <- ridgecv$lambda.min
+lambdaridge
+```
+4. Using this value of lambda (which can vary because of the different fold cuts), now we find it's location in the ridgecv and betas for this value of lambda.
+```{r}
+small.lambda.index <- which(ridgecv$lambda == ridgecv$lambda.min)
+small.lambda.betas <- coef(ridgecv$glmnet.fit)[,small.lambda.index]
+```
+5. Plotting the coefficent by the log of the lambdas we can see the minimum is about 1.
+```{r}
+plot(ridgefit,xvar="lambda", main="Coeffs of Ridge Regression", type="l", 
+    xlab=expression("log_lambda"), ylab="Coeff")
+abline(h=0)
+abline(v=log(ridgecv$lambda.min))
+grid()
+small.lambda.betas
+```
+
+# 4.15
+
+1. Similiar to Ridge regression, we fit the Lasso model using many variables of lambda, take a three-fold cross-validation and find the minimum.
+```{r}
+lassofit=glmnet(x, y, alpha=1,lambda=seq(0,10,0.01))
+lassocv=cv.glmnet(x,y,alpha=1,nfold=3,lambda=seq(0,10,0.01))
+lambdalasso=lassocv$lambda.min
+print(lambdalasso)
+```
+
+2. Using this minimum of lambda, we find the location and the betas.
+```{r}
+small.lambda.index <- which(lassocv$lambda == lassocv$lambda.min)
+small.lambda.betas <- coef(lassocv$glmnet.fit)[,small.lambda.index]
+```
+
+3. Plotting the lambda against the coefficients, we can see the minimum for all the variables seem to converge at just under 1.
+```{r}
+plot(lassofit,xvar="lambda",label=TRUE, main="Coeffs of Lasso Regression", type="l", 
+    xlab=expression("log_lambda"), ylab="Coeff")
+abline(h=0); abline(v=log(lassocv$lambda.min))
+grid()
+small.lambda.betas
+```
+
+# 5.3
+
+First, I create the data used for this exercise.
+```{r}
+y <- c(12.37,12.66,12.00,11.93,11.06,13.03,13.13,11.44,12.86,10.84,11.20,11.56,10.83,12.63,12.46)
+x <- matrix(data = c(2.23,2.57,3.87,3.10,3.39,2.83,3.02,2.14,3.04,3.26,3.39,2.35,2.76,3.90,3.16,9.66,8.94,4.40,6.64,4.91,8.52,8.04,9.05,7.71,5.11,5.05,8.51,6.59,4.90,6.96), nrow  = 15, ncol = 2, dimnames = list(c(1:15),c("x1","x2")))
+```
+
+## a.
+It appears that the x1 and x2 are highly correllated, but neither x1 or x2 is correlated with y.
+```{r}
+plot(as.data.frame(cbind(y,x)))
+```
+
+Now we take a pairwise regression.
+
+```{r}
+lmfit <- lm(y ~ x)
+step(lmfit,direction="both")
+```
+Using both backwards and both stepwise regression, the best options is to include both x1 and x2 as that minimizes the AIC.
+
+## b.
+
+```{r}
+summary <- summary(lmfit)
+summary$r.squared # Full Model r.squared
+lmfit <- lm(y ~ as.data.frame(x)$x1)
+summary <- summary(lmfit)
+summary$r.squared # x1 only model r.squared
+lmfit <- lm(y ~ as.data.frame(x)$x2)
+summary <- summary(lmfit)
+summary$r.squared # x2 only model r.squared
+```
+
+With both variables in the model, the r squared if extremely high. However, with just one variable the model the r squared is very low. The r squared takes into account the correllation of both the independent variables and the dependent variables and is therefore artificially inflated. Since x1 and x2 are highly correllated, we violate multicollinarity. Niether variable should be included in the model. We would not catch this if we use a backwards or both stepwise regression. We would catch this if we used a forward stepwise regression. 
+
+## c.
+Using the forward method, the model would not find it significant to include x1 in the model. Then it would move to x2 and it would not find it significant to include in the model. Therefore, neither x1 nor x2 would have been found to be included in the model. However, both x1 and x2 should be included in the model
+
+# 5.5
+
+## a. 
+
+Variables in Model | $SSE_p$ |	$p$	| Error d.f. | $MSE_p$ | $R^2_{adj,p}$ | $C_p$ | $AIC_p$
+------------------ | ------- | ---- | ---------- | ------- | ------------- | ----- | -------
+None | 950 |	0 |	19 |	50 |	0 |	1 |	79.21
+$x_1$ |  720 |	1 |	18 |	40 |	0.2 |	2 |	75.67
+$x_2$ | 630 |	1 |	18 |	35 |	0.3 |	2 |	73.00
+$x_3$ | 540 |	1 |	18 |	30 |	0.4 |	2 |	69.92
+$x_1$,$x_2$ |595 |	2 |	17 |	35 |	0.3 |	3 |	73.86
+$x_1$,$x_3$ |425 |	2 |	17 |	25 |	0.5 |	3 |	67.13
+$x_2$,$x_3$ |510 |	2 |	17 |	30 |	0.4 |	3 |	70.77
+$x_1$,$x_2$,$x_3$ |400 |	3 |	16 |	25 |	0.5 |	4 |	67.91
+
+## b. 
+ I would select the model with $x_1$ and $x_3$ because it has the highest adjusted R squared, lowest $C_p$ and lowest $AIC_p$.
+ 
+## c.
+Since x3 has the highest absolute value of correlation, it is the first to enter the model: $r_{y x_1} = 1 - SSE_0 / SSE_p$
+```{r}
+r_yx1 = sqrt(1 - 720/950)
+r_yx2 = sqrt(1 - 630/950)
+r_yx3 = sqrt(1 - 540/950)
+```
+
+The $F_{in}$ is:
+```{r}
+f_x3 = (r_yx3^2)*(20 - (1 + 1))/(1 - (r_yx3)^2)
+```
+
+## d.
+The second variable to enter the model is X1 with a $f_{in}$ of 4.6 with a partial correlation coefficient of 0.46:
+```{r}
+r_yx3_x1 = sqrt(1 - 425/540)
+r_yx3_x2 = sqrt(1 - 510/540)
+f_x3x1 = (r_yx3_x1^2)*(20 - (2 + 1))/(1 - (r_yx3_x1)^2)
+```
+
+## e.
+
+The first varible x3 cannot be removed because it's $f_{out}$ = 11.8 > 4.
+```{r}
+r_yx1_x3 = sqrt((720 -425) / 720)
+f_x1x3 = (r_yx1_x3^2)*(20 - (2 + 1))/(1 - (r_yx1_x3)^2)
+```
+
+## f.
+
+The third variable x2, cannot be entered into the model because it's $f_{out}$ = 1 $!>$ 4.
+```{r}
+r_yx3_x1_x2 = sqrt((425 - 400)/425)
+f_x3x1x2 = (r_yx3_x1_x2^2)*(20 - (3 + 1))/(1 - (r_yx3_x1_x2)^2)
+```
+
+# 5.6
+
+```{r}
+c <- read.csv("C:/Users/Jeff/Downloads/carprices.csv")
+c$Buick <- ifelse(c$Make == "Buick",1,0)
+c$Cadillac <- ifelse(c$Make == "Cadillac",1,0)
+c$Chevrolet <- ifelse(c$Make == "Chevrolet",1,0)
+c$SAAB <- ifelse(c$Make == "SAAB",1,0)
+c$Pontiac <- ifelse(c$Make == "Pontiac",1,0)
+c$Saturn <- ifelse(c$Make == "Saturn",1,0)
+c$Convertible <- ifelse(c$Type == "Convertible",1,0)
+c$Coupe <- ifelse(c$Type == "Coupe",1,0)
+c$Hatchback <- ifelse(c$Type == "Hatchback",1,0)
+c$Sedan <- ifelse(c$Type == "Sedan",1,0)
+c$Wagon <- ifelse(c$Type == "Wagon",1,0)
+
+train_indices <- seq(1, nrow(c), by=2)
+train <- c[train_indices, ]
+test <- c[-train_indices, ]
+
+model1 <- lm(I(log(c$Price)) ~ c$Mileage + c$Cylinder + c$Liter + c$Buick + c$Cadillac + c$Chevrolet + c$SAAB + c$Convertible + c$Coupe + c$Hatchback + c$Sedan, data = test)
+summary(model1)
+model2 <- lm(I(log(c$Price)) ~ c$Mileage + c$Liter + c$Cadillac + c$Chevrolet + c$Pontiac + c$SAAB + c$Saturn + c$Convertible + c$Wagon + c$Cylinder, data = test)
+summary(model2)
+SSE_1 <- sum(resid(model1)^2)
+SSE_2 <- sum(resid(model2)^2)
+SSE_1
+SSE_2
+```
+
+The SSE is smaller for Model 1. All the variables are statistically significant at 5% for both models. Since this is the case, both models are highly predicitive. If I had to select a model, I would probably choose Model 1 because the variables included are mostly likely to be available in the future. Model 2 includes Pontiac, SAAB, Saturn, convertible, and wagon, all of which are dead car companies and models not commonly made. Model 1 includes SAAB unfortunalety, but it also includes the now popular hatchback type of vehicle.
